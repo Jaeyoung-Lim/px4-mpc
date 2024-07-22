@@ -51,7 +51,7 @@ from px4_msgs.msg import VehicleAttitude
 from px4_msgs.msg import VehicleAngularVelocity
 from px4_msgs.msg import VehicleLocalPosition
 from px4_msgs.msg import VehicleRatesSetpoint
-from px4_msgs.msg import ActuatorOutputs
+from px4_msgs.msg import ActuatorMotors
 
 from mpc_msgs.srv import SetPose
 
@@ -110,7 +110,7 @@ class SpacecraftMPC(Node):
 
         self.publisher_offboard_mode = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', qos_profile)
         self.publisher_rates_setpoint = self.create_publisher(VehicleRatesSetpoint, '/fmu/in/vehicle_rates_setpoint', qos_profile)
-        self.publisher_direct_actuator = self.create_publisher(ActuatorOutputs, '/fmu/in/actuator_outputs', qos_profile)
+        self.publisher_direct_actuator = self.create_publisher(ActuatorMotors, '/fmu/in/actuator_motors', qos_profile)
         self.predicted_path_pub = self.create_publisher(Path, '/px4_mpc/predicted_path', 10)
         self.reference_pub = self.create_publisher(Marker, "/px4_mpc/reference", 10)
 
@@ -202,7 +202,7 @@ class SpacecraftMPC(Node):
         self.publisher_rates_setpoint.publish(rates_setpoint_msg)
 
     def publish_direct_actuator_setpoint(self, u_pred):
-        actuator_outputs_msg = ActuatorOutputs()
+        actuator_outputs_msg = ActuatorMotors()
         actuator_outputs_msg.timestamp = int(Clock().now().nanoseconds / 1000)
 
         # NOTE:
@@ -215,22 +215,20 @@ class SpacecraftMPC(Node):
         thrust = u_pred[0, :] / self.model.max_thrust  # normalizes w.r.t. max thrust
         # print("Thrust rates: ", thrust[0:4])
 
-        thrust_command = np.zeros(16, dtype=np.float32)
+        thrust_command = np.zeros(12, dtype=np.float32)
         thrust_command[0] = 0.0 if thrust[0] <= 0.0 else thrust[0]
-        thrust_command[1] = 0.0 if thrust[1] <= 0.0 else thrust[1]
-        thrust_command[2] = 0.0 if thrust[2] <= 0.0 else thrust[2]
-        thrust_command[3] = 0.0 if thrust[3] <= 0.0 else thrust[3]
-        thrust_command[4] = 0.0 if thrust[0] >= 0.0 else -thrust[0]
-        thrust_command[5] = 0.0 if thrust[1] >= 0.0 else -thrust[1]
-        thrust_command[6] = 0.0 if thrust[2] >= 0.0 else -thrust[2]
+        thrust_command[1] = 0.0 if thrust[0] >= 0.0 else -thrust[0]
+
+        thrust_command[2] = 0.0 if thrust[1] <= 0.0 else thrust[1]
+        thrust_command[3] = 0.0 if thrust[1] >= 0.0 else -thrust[1]
+
+        thrust_command[4] = 0.0 if thrust[2] <= 0.0 else thrust[2]
+        thrust_command[5] = 0.0 if thrust[2] >= 0.0 else -thrust[2]
+
+        thrust_command[6] = 0.0 if thrust[3] <= 0.0 else thrust[3]
         thrust_command[7] = 0.0 if thrust[3] >= 0.0 else -thrust[3]
 
-        # override
-        thrust_command = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
-        thrust_command = np.hstack((thrust_command, np.zeros(8, dtype=np.float32)), dtype=np.float32)
-        print("Thrust command: ", thrust_command)
-
-        actuator_outputs_msg.output = thrust_command.flatten()
+        actuator_outputs_msg.control = thrust_command.flatten()
         self.publisher_direct_actuator.publish(actuator_outputs_msg)
 
     def cmdloop_callback(self):

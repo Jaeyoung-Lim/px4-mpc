@@ -86,10 +86,10 @@ class SpacecraftDirectAllocationModel():
 
         # L mat
         L_mat = cs.MX.zeros(1, 4)
-        L_mat[0, 0] = 1
-        L_mat[0, 1] = -1
-        L_mat[0, 2] = 1
-        L_mat[0, 3] = -1
+        L_mat[0, 0] = -1
+        L_mat[0, 1] = 1
+        L_mat[0, 2] = -1
+        L_mat[0, 3] = 1
 
         F_2d = cs.mtimes(D_mat, u)
         tau_1d = cs.mtimes(L_mat, u)
