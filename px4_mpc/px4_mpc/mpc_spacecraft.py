@@ -207,10 +207,10 @@ class SpacecraftMPC(Node):
 
         # NOTE:
         # Output is float[16]
-        # u1 needs to be divided between 1 and 5
-        # u2 needs to be divided between 2 and 6
-        # u3 needs to be divided between 3 and 7
-        # u4 needs to be divided between 4 and 8
+        # u1 needs to be divided between 1 and 2
+        # u2 needs to be divided between 3 and 4
+        # u3 needs to be divided between 5 and 6
+        # u4 needs to be divided between 7 and 8
         # positve component goes for the first, the negative for the second
         thrust = u_pred[0, :] / self.model.max_thrust  # normalizes w.r.t. max thrust
         # print("Thrust rates: ", thrust[0:4])
@@ -259,7 +259,7 @@ class SpacecraftMPC(Node):
              self.vehicle_attitude[0], self.vehicle_attitude[1], self.vehicle_attitude[2], self.vehicle_attitude[3],
              self.vehicle_angular_velocity[0], self.vehicle_angular_velocity[1], self.vehicle_angular_velocity[2]
             ]).reshape(13, 1)
-
+        print("x0: ", x0)
         u_pred, x_pred = self.mpc.solve(x0)
 
         idx = 0

@@ -53,7 +53,6 @@ class SpacecraftDirectAllocationMPC():
         # set model
         model = self.model.get_acados_model()
         Fmax = self.model.max_thrust
-        wmax = self.model.max_rate
 
         ocp.model = model
 
