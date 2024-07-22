@@ -81,8 +81,8 @@ class SpacecraftDirectAllocationModel():
         D_mat = cs.MX.zeros(2, 4)
         D_mat[0, 0] = 1
         D_mat[0, 1] = 1
-        D_mat[1, 2] = 1
-        D_mat[1, 3] = 1
+        D_mat[1, 2] = -1
+        D_mat[1, 3] = -1
 
         # L mat
         L_mat = cs.MX.zeros(1, 4)
