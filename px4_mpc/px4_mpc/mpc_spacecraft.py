@@ -69,7 +69,7 @@ def vector2PoseMsg(frame_id, position, attitude):
     pose_msg.pose.position.z = float(position[2])
     return pose_msg
 
-class QuadrotorMPC(Node):
+class SpacecraftMPC(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
@@ -110,7 +110,7 @@ class QuadrotorMPC(Node):
 
         self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
 
-        # Create Quadrotor and controller objects
+        # Create Spacecraft and controller objects
         self.model = SpacecraftRateModel()
 
         # Spawn Controller
@@ -221,11 +221,11 @@ class QuadrotorMPC(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    quadrotor_mpc = QuadrotorMPC()
+    spacecraft_mpc = SpacecraftMPC()
 
-    rclpy.spin(quadrotor_mpc)
+    rclpy.spin(spacecraft_mpc)
 
-    quadrotor_mpc.destroy_node()
+    spacecraft_mpc.destroy_node()
     rclpy.shutdown()
 
 
