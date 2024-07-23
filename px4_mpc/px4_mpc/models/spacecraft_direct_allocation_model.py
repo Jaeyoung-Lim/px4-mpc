@@ -44,6 +44,7 @@ class SpacecraftDirectAllocationModel():
         self.inertia = np.diag((0.1454, 0.1366, 0.1594))
         self.max_thrust = 1.5
         self.max_rate = 0.5
+        self.torque_arm_length = 0.12
 
     def get_acados_model(self) -> AcadosModel:
         def skew_symmetric(v):
@@ -90,6 +91,7 @@ class SpacecraftDirectAllocationModel():
         L_mat[0, 1] = 1
         L_mat[0, 2] = -1
         L_mat[0, 3] = 1
+        L_mat = L_mat * self.torque_arm_length
 
         F_2d = cs.mtimes(D_mat, u)
         tau_1d = cs.mtimes(L_mat, u)
