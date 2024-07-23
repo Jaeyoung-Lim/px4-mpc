@@ -66,9 +66,9 @@ class SpacecraftRateMPC():
         ocp.dims.N = N_horizon
 
         # set cost
-        Q_mat = 2*np.diag([10e1, 10e1, 10e1, 1e1, 1e1, 1e1, 0.0, 0.1, 0.1, 0.1])
-        Q_e = 2*np.diag([30e2, 30e2, 30e2, 1e2, 1e2, 1e2, 0.0, 0.0, 0.0, 0.0])
-        R_mat = 2*np.diag([1e1, 1e1, 1e1, 5e2, 5e2, 5e2])
+        Q_mat = 2*np.diag([10e1, 10e1, 10e1, 100e1, 100e1, 100e1, 1.0, 1.0, 1.0, 1.0])
+        Q_e = 2*np.diag([30e2, 30e2, 30e2, 100e2, 100e2, 100e2, 10.0, 10.0, 10.0, 10.0])
+        R_mat = 2*np.diag([1e1, 1e1, 1e1, 1e1, 1e1, 1e1])
 
         # TODO: How do you add terminal costs?
 

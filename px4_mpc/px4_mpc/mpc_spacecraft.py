@@ -190,15 +190,18 @@ class SpacecraftMPC(Node):
         pub.publish(msg)
 
     def publish_rate_setpoint(self, u_pred):
+        # TODO: Fix this
         thrust_rates = u_pred[0, :]
         # Hover thrust = 0.73
-        thrust_command = thrust_rates[0:3] * 0.07  # NOTE: Tune in thrust multiplier
+        thrust_command = thrust_rates  # NOTE: Tune in thrust multiplier
         rates_setpoint_msg = VehicleRatesSetpoint()
         rates_setpoint_msg.timestamp = int(Clock().now().nanoseconds / 1000)
-        rates_setpoint_msg.roll = 0.0
-        rates_setpoint_msg.pitch = 0.0
-        rates_setpoint_msg.yaw = 0.0
-        rates_setpoint_msg.thrust_body = thrust_command
+        rates_setpoint_msg.roll = float(thrust_rates[3])
+        rates_setpoint_msg.pitch = -float(thrust_rates[4])
+        rates_setpoint_msg.yaw = -float(thrust_rates[5])
+        rates_setpoint_msg.thrust_body[0] = float(thrust_command[0])
+        rates_setpoint_msg.thrust_body[1] = -float(thrust_command[1])
+        rates_setpoint_msg.thrust_body[2] = -float(thrust_command[2])
         self.publisher_rates_setpoint.publish(rates_setpoint_msg)
 
     def publish_direct_actuator_setpoint(self, u_pred):

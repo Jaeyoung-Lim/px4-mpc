@@ -65,9 +65,9 @@ class SpacecraftDirectAllocationMPC():
         ocp.dims.N = N_horizon
 
         # set cost
-        Q_mat = 2*np.diag([10e1, 10e1, 10e1, 1e1, 1e1, 1e1, 1e2, 1e2, 1e2, 0.0, 0.1, 0.1, 0.1])
-        Q_e = 2*np.diag([30e2, 30e2, 30e2, 1e2, 1e2, 1e2, 0.0, 0.0, 0.0, 0.0, 1e2, 1e2, 1e2])
-        R_mat = 2*np.diag([1e1] * 4)
+        Q_mat = np.diag([3e1, 3e1, 3e1, 2e1, 2e1, 2e2, 1e2, 1e2, 1e2, 1e3, 1e3, 1e3, 1e3])
+        Q_e = 20 * Q_mat
+        R_mat = np.diag([0.5e1] * 4)
 
         ocp.cost.cost_type = 'NONLINEAR_LS'
         ocp.cost.cost_type_e = 'NONLINEAR_LS'
