@@ -39,7 +39,7 @@ import casadi as cs
 class SpacecraftWrenchMPC():
     def __init__(self, model):
         self.model = model
-        self.Tf = 1.0
+        self.Tf = 5.0
         self.N = 50
 
         self.x0 = np.array([0.01, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
@@ -66,9 +66,12 @@ class SpacecraftWrenchMPC():
         ocp.dims.N = N_horizon
 
         # set cost
-        Q_mat = 2*np.diag([10e1, 10e1, 10e1, 1e1, 1e1, 1e1, 1e1, 1e1, 1e1, 0.0, 0.1, 0.1, 0.1])
-        Q_e   = 2*np.diag([30e2, 30e2, 30e2, 1e2, 1e2, 1e2, 0.0, 0.0, 0.0, 0.0, 1e2, 1e2, 1e2])
-        R_mat = 2*np.diag([1e1, 1e1, 5e0])
+        Q_mat = np.diag([5e1, 5e1, 5e1,
+                         2e3, 2e3, 2e3,
+                         5e2, 5e2, 5e2, 5e2,
+                         3e2, 3e2, 3e2])
+        Q_e = 20 * Q_mat
+        R_mat = 2*np.diag([1e1, 1e1, 1e1])
 
         ocp.cost.cost_type = 'NONLINEAR_LS'
         ocp.cost.cost_type_e = 'NONLINEAR_LS'

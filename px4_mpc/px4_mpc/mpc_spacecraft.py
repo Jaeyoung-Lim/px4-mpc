@@ -79,12 +79,26 @@ def vector2PoseMsg(frame_id, position, attitude):
 class SpacecraftMPC(Node):
 
     def __init__(self):
-        super().__init__('minimal_publisher')
-        qos_profile = QoSProfile(
-            reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
-            durability=QoSDurabilityPolicy.RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL,
-            history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST,
-            depth=1
+        super().__init__('spacecraft_mpc')
+
+        # Declare and retrieve the namespace parameter
+        self.declare_parameter('namespace', '')  # Default to empty namespace
+        self.namespace = self.get_parameter('namespace').value
+        self.namespace_prefix = f'/{self.namespace}' if self.namespace else ''
+
+        # QoS profiles
+        qos_profile_pub = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=0
+        )
+
+        qos_profile_sub = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=0
         )
 
         # Get mode; rate, wrench, direct_allocation
@@ -92,41 +106,35 @@ class SpacecraftMPC(Node):
 
         self.status_sub = self.create_subscription(
             VehicleStatus,
-            '/fmu/out/vehicle_status',
+            f'{self.namespace_prefix}/fmu/out/vehicle_status',
             self.vehicle_status_callback,
-            qos_profile)
+            qos_profile_sub)
 
         self.attitude_sub = self.create_subscription(
             VehicleAttitude,
-            '/fmu/out/vehicle_attitude',
+            f'{self.namespace_prefix}/fmu/out/vehicle_attitude',
             self.vehicle_attitude_callback,
-            qos_profile)
+            qos_profile_sub)
         self.angular_vel_sub = self.create_subscription(
             VehicleAngularVelocity,
-            '/fmu/out/vehicle_angular_velocity',
+            f'{self.namespace_prefix}/fmu/out/vehicle_angular_velocity',
             self.vehicle_angular_velocity_callback,
-            qos_profile)
-        self.angular_vel_sub = self.create_subscription(
-            VehicleAngularVelocity,
-            '/fmu/out/vehicle_angular_velocity',
-            self.vehicle_angular_velocity_callback,
-            qos_profile)
+            qos_profile_sub)
         self.local_position_sub = self.create_subscription(
             VehicleLocalPosition,
-            '/fmu/out/vehicle_local_position',
+            f'{self.namespace_prefix}/fmu/out/vehicle_local_position',
             self.vehicle_local_position_callback,
-            qos_profile)
+            qos_profile_sub)
 
-        self.set_pose_srv = self.create_service(SetPose, '/set_pose', self.add_set_pos_callback)
+        self.set_pose_srv = self.create_service(SetPose, f'{self.namespace_prefix}/set_pose', self.add_set_pos_callback)
 
-        self.publisher_offboard_mode = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', qos_profile)
-        self.publisher_rates_setpoint = self.create_publisher(VehicleRatesSetpoint, '/fmu/in/vehicle_rates_setpoint', qos_profile)
-        self.publisher_direct_actuator = self.create_publisher(ActuatorMotors, '/fmu/in/actuator_motors', qos_profile)
-        self.publisher_thrust_setpoint = self.create_publisher(VehicleThrustSetpoint, '/fmu/in/vehicle_thrust_setpoint', qos_profile)
-        self.publisher_torque_setpoint = self.create_publisher(VehicleTorqueSetpoint, '/fmu/in/vehicle_torque_setpoint', qos_profile)
-        self.predicted_path_pub = self.create_publisher(Path, '/px4_mpc/predicted_path', 10)
-        self.reference_pub = self.create_publisher(Marker, "/px4_mpc/reference", 10)
-        self.reference_pub = self.create_publisher(Marker, "/px4_mpc/reference", 10)
+        self.publisher_offboard_mode = self.create_publisher(OffboardControlMode, f'{self.namespace_prefix}/fmu/in/offboard_control_mode', qos_profile_pub)
+        self.publisher_rates_setpoint = self.create_publisher(VehicleRatesSetpoint, f'{self.namespace_prefix}/fmu/in/vehicle_rates_setpoint', qos_profile_pub)
+        self.publisher_direct_actuator = self.create_publisher(ActuatorMotors, f'{self.namespace_prefix}/fmu/in/actuator_motors', qos_profile_pub)
+        self.publisher_thrust_setpoint = self.create_publisher(VehicleThrustSetpoint, f'{self.namespace_prefix}/fmu/in/vehicle_thrust_setpoint', qos_profile_pub)
+        self.publisher_torque_setpoint = self.create_publisher(VehicleTorqueSetpoint, f'{self.namespace_prefix}/fmu/in/vehicle_torque_setpoint', qos_profile_pub)
+        self.predicted_path_pub = self.create_publisher(Path, f'{self.namespace_prefix}/px4_mpc/predicted_path', 10)
+        self.reference_pub = self.create_publisher(Marker, f"{self.namespace_prefix}/px4_mpc/reference", 10)
 
         timer_period = 0.02  # seconds
         self.timer = self.create_timer(timer_period, self.cmdloop_callback)
@@ -218,7 +226,7 @@ class SpacecraftMPC(Node):
     def publish_rate_setpoint(self, u_pred):
         thrust_rates = u_pred[0, :]
         # Hover thrust = 0.73
-        thrust_command = thrust_rates[0:3] * 0.07  # NOTE: Tune in thrust multiplier
+        thrust_command = thrust_rates[0:3]
         rates_setpoint_msg = VehicleRatesSetpoint()
         rates_setpoint_msg.timestamp = int(Clock().now().nanoseconds / 1000)
         rates_setpoint_msg.roll  = float(thrust_rates[3])

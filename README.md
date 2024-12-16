@@ -39,3 +39,8 @@ In order to launch the mpc quadrotor in a ros2 launchfile,
 ```
 ros2 launch px4_mpc mpc_quadrotor_launch.py 
 ```
+
+Use a custom namespace
+```
+ros2 launch px4_mpc mpc_spacecraft_launch.py namespace:=<namespace> 
+```

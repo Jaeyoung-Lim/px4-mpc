@@ -36,29 +36,49 @@ __author__ = "Pedro Roque, Jaeyoung Lim"
 __contact__ = "padr@kth.se, jalim@ethz.ch"
 
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
 
 
 def generate_launch_description():
+    # Declare namespace argument
+    namespace_arg = DeclareLaunchArgument(
+        'namespace',
+        default_value='',  # Default namespace is empty
+        description='Namespace for all nodes'
+    )
+
+    # Get and process the namespace value
+    namespace = LaunchConfiguration('namespace')
+
     return LaunchDescription([
+        namespace_arg,
+
         Node(
             package='px4_mpc',
-            namespace='px4_mpc',
+            namespace=namespace,
             executable='mpc_spacecraft',
             name='mpc_spacecraft',
             output='screen',
             emulate_tty=True,
-            parameters=[{'mode': 'wrench'}], # rate/wrench/direct_allocation
+            parameters=[
+                {'mode': 'direct_allocation'},
+                {'namespace': namespace}
+            ]
         ),
         Node(
             package='px4_mpc',
-            namespace='px4_mpc',
+            namespace=namespace,
             executable='rviz_pos_marker',
             name='rviz_pos_marker',
             output='screen',
             emulate_tty=True,
+            parameters=[
+                {'namespace': namespace}
+            ]
         ),
         # Node(
         #     package='micro_ros_agent',
@@ -68,15 +88,18 @@ def generate_launch_description():
         #     output='screen'),
         Node(
             package='px4_offboard',
-            namespace='px4_offboard',
+            namespace=namespace,
             executable='visualizer',
-            name='visualizer'
+            name='visualizer',
+            parameters=[
+                {'namespace': namespace}
+            ]
         ),
         Node(
             package='rviz2',
             namespace='',
             executable='rviz2',
             name='rviz2',
-            arguments=['-d', [os.path.join(get_package_share_directory('px4_mpc'), 'config.rviz')]]
-        )
+            arguments=['-d', os.path.join(get_package_share_directory('px4_mpc'), 'config.rviz')],
+        ),
     ])

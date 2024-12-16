@@ -39,8 +39,8 @@ class SpacecraftRateModel():
         self.name = 'spacecraft_rate_model'
 
         # constants
-        self.mass = 15.
-        self.max_thrust = 1.
+        self.mass = 15.0
+        self.max_thrust = 1.5
         self.max_rate = 0.5
 
     def get_acados_model(self) -> AcadosModel:

@@ -39,7 +39,7 @@ import casadi as cs
 class SpacecraftDirectAllocationMPC():
     def __init__(self, model):
         self.model = model
-        self.Tf = 1.0
+        self.Tf = 5.0
         self.N = 50
 
         self.x0 = np.array([0.01, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
@@ -65,12 +65,12 @@ class SpacecraftDirectAllocationMPC():
         ocp.dims.N = N_horizon
 
         # set cost
-        Q_mat = np.diag([3e1, 3e1, 3e1,
-                         2e1, 2e1, 2e2,
-                         1e2, 1e2, 1e2, 1e2,
-                         1e1, 1e1, 1e1])
+        Q_mat = np.diag([5e1, 5e1, 5e1,
+                         2e3, 2e3, 2e3,
+                         5e2, 5e2, 5e2, 5e2,
+                         3e2, 3e2, 3e2])
         Q_e = 20 * Q_mat
-        R_mat = np.diag([0.5e1] * 4)
+        R_mat = np.diag([1e1] * 4)
 
         ocp.cost.cost_type = 'NONLINEAR_LS'
         ocp.cost.cost_type_e = 'NONLINEAR_LS'
@@ -87,11 +87,14 @@ class SpacecraftDirectAllocationMPC():
         ocp.constraints.lbu = np.array([-Fmax, -Fmax, -Fmax, -Fmax])
         ocp.constraints.ubu = np.array([+Fmax, +Fmax, +Fmax, +Fmax])
         ocp.constraints.idxbu = np.array([0, 1, 2, 3])
+        # ocp.constraints.lbx = np.array([0, -1.54, -10 -0.05, -0.05, -10, -1.01, -1.01, -1.01, -1.01, -10, -10, -10])
+        # ocp.constraints.ubx = np.array([4, 1.5,    10, 0.05,  0.05,  10,  1.01,  1.01,  1.01,  1.01,  10,  10, 10])
+        # ocp.constraints.idxbx = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
 
         ocp.constraints.x0 = x0
 
         # set options
-        ocp.solver_options.qp_solver = 'FULL_CONDENSING_DAQP' # FULL_CONDENSING_QPOASES
+        ocp.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM' # FULL_CONDENSING_QPOASES
         # PARTIAL_CONDENSING_HPIPM, FULL_CONDENSING_QPOASES, FULL_CONDENSING_HPIPM,
         # PARTIAL_CONDENSING_QPDUNES, PARTIAL_CONDENSING_OSQP, FULL_CONDENSING_DAQP
         ocp.solver_options.hessian_approx = 'GAUSS_NEWTON' # 'GAUSS_NEWTON', 'EXACT'
