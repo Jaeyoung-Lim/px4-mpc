@@ -39,7 +39,7 @@ import casadi as cs
 class SpacecraftDirectAllocationMPC():
     def __init__(self, model):
         self.model = model
-        self.Tf = 1.0
+        self.Tf = 5.0
         self.N = 50
 
         self.x0 = np.array([0.01, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
@@ -67,10 +67,10 @@ class SpacecraftDirectAllocationMPC():
         # set cost
         Q_mat = np.diag([3e1, 3e1, 3e1,
                          2e1, 2e1, 2e2,
-                         1e2, 1e2, 1e2, 1e2,
-                         1e1, 1e1, 1e1])
+                         10e2, 10e2, 10e2, 10e2,
+                         10e1, 10e1, 10e1])
         Q_e = 20 * Q_mat
-        R_mat = np.diag([0.5e1] * 4)
+        R_mat = np.diag([10*0.5e1] * 4)
 
         ocp.cost.cost_type = 'NONLINEAR_LS'
         ocp.cost.cost_type_e = 'NONLINEAR_LS'
@@ -80,8 +80,8 @@ class SpacecraftDirectAllocationMPC():
 
         ocp.model.cost_y_expr = cs.vertcat(model.x, model.u)
         ocp.model.cost_y_expr_e = model.x
-        ocp.cost.yref  = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        ocp.cost.yref_e = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,])
+        ocp.cost.yref  = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        ocp.cost.yref_e = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,])
 
         # set constraints
         ocp.constraints.lbu = np.array([-Fmax, -Fmax, -Fmax, -Fmax])
