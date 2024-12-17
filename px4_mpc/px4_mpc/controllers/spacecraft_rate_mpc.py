@@ -85,8 +85,8 @@ class SpacecraftRateMPC():
 
         ocp.model.cost_y_expr = cs.vertcat(model.x, model.u)
         ocp.model.cost_y_expr_e = model.x
-        ocp.cost.yref  = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        ocp.cost.yref_e = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        ocp.cost.yref  = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        ocp.cost.yref_e = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0])
 
         # set constraints
         ocp.constraints.lbu = np.array([-Fmax, -Fmax, -Fmax, -wmax, -wmax, -wmax])
