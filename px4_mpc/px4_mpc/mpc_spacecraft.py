@@ -62,9 +62,11 @@ from time import perf_counter
 
 
 
+
 def vector2PoseMsg(frame_id, position, attitude):
     pose_msg = PoseStamped()
     # msg.header.stamp = Clock().now().nanoseconds / 1000
+    pose_msg.header.frame_id = frame_id
     pose_msg.header.frame_id = frame_id
     pose_msg.pose.orientation.w = attitude[0]
     pose_msg.pose.orientation.x = attitude[1]
@@ -137,7 +139,7 @@ class SpacecraftMPC(Node):
                 f'{self.namespace_prefix}/px4_mpc/setpoint_pose',
                 self.get_setpoint_pose_callback,
                 0)
-        
+
         self.publisher_offboard_mode = self.create_publisher(OffboardControlMode, f'{self.namespace_prefix}/fmu/in/offboard_control_mode', qos_profile_pub)
         self.publisher_rates_setpoint = self.create_publisher(VehicleRatesSetpoint, f'{self.namespace_prefix}/fmu/in/vehicle_rates_setpoint', qos_profile_pub)
         self.publisher_direct_actuator = self.create_publisher(ActuatorMotors, f'{self.namespace_prefix}/fmu/in/actuator_motors', qos_profile_pub)
@@ -314,9 +316,9 @@ class SpacecraftMPC(Node):
         error_attitude = self.vehicle_attitude - self.setpoint_attitude
 
         if self.mode == 'rate':
-            x0 = np.array([error_position[0],
-                           error_position[1],
-                           error_position[2],
+            x0 = np.array([self.vehicle_local_position[0],
+                           self.vehicle_local_position[1],
+                           self.vehicle_local_position[2],
                            self.vehicle_local_velocity[0],
                            self.vehicle_local_velocity[1],
                            self.vehicle_local_velocity[2],
@@ -372,7 +374,7 @@ class SpacecraftMPC(Node):
         self.setpoint_attitude[2] = request.pose.orientation.y
         self.setpoint_attitude[3] = request.pose.orientation.z
         return response
-    
+
     def get_setpoint_pose_callback(self, msg):
         self.setpoint_position[0] = msg.pose.position.x
         self.setpoint_position[1] = msg.pose.position.y
@@ -381,6 +383,7 @@ class SpacecraftMPC(Node):
         self.setpoint_attitude[1] = msg.pose.orientation.x
         self.setpoint_attitude[2] = msg.pose.orientation.y
         self.setpoint_attitude[3] = msg.pose.orientation.z
+
 
 
 

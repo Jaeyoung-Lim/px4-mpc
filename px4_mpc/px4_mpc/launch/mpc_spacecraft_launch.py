@@ -51,7 +51,7 @@ def generate_launch_description():
         default_value='wrench',
         description='Mode of the controller (rate, wrench, direct_allocation)'
     )
-    
+
     namespace_arg = DeclareLaunchArgument(
         'namespace',
         default_value='',  # Default namespace is empty
