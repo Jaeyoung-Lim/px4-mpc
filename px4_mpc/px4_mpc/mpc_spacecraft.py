@@ -169,6 +169,11 @@ class SpacecraftMPC(Node):
             from px4_mpc.controllers.spacecraft_direct_allocation_mpc import SpacecraftDirectAllocationMPC
             self.model = SpacecraftDirectAllocationModel()
             self.mpc = SpacecraftDirectAllocationMPC(self.model)
+        elif self.mode == 'direct_allocation_trajectory':
+            from px4_mpc.models.spacecraft_direct_allocation_model import SpacecraftDirectAllocationModel
+            from px4_mpc.controllers.spacecraft_direct_allocation_traj_mpc import SpacecraftDirectAllocationMPC
+            self.model = SpacecraftDirectAllocationModel()
+            self.mpc = SpacecraftDirectAllocationMPC(self.model)
 
         self.vehicle_attitude = np.array([1.0, 0.0, 0.0, 0.0])
         self.vehicle_local_position = np.array([0.0, 0.0, 0.0])
@@ -306,7 +311,7 @@ class SpacecraftMPC(Node):
         offboard_msg.direct_actuator = False
         if self.mode == 'rate':
             offboard_msg.body_rate = True
-        elif self.mode == 'direct_allocation':
+        elif self.mode == 'direct_allocation' or self.mode == 'direct_allocation_trajectory':
             offboard_msg.direct_actuator = True
         elif self.mode == 'wrench':
             offboard_msg.thrust_and_torque = True
@@ -316,9 +321,9 @@ class SpacecraftMPC(Node):
         error_attitude = self.vehicle_attitude - self.setpoint_attitude
 
         if self.mode == 'rate':
-            x0 = np.array([self.vehicle_local_position[0],
-                           self.vehicle_local_position[1],
-                           self.vehicle_local_position[2],
+            x0 = np.array([error_position[0],
+                           error_position[1],
+                           error_position[2],
                            self.vehicle_local_velocity[0],
                            self.vehicle_local_velocity[1],
                            self.vehicle_local_velocity[2],
@@ -340,18 +345,36 @@ class SpacecraftMPC(Node):
                            self.vehicle_angular_velocity[0],
                            self.vehicle_angular_velocity[1],
                            self.vehicle_angular_velocity[2]]).reshape(13, 1)
+        elif self.mode == 'direct_allocation_trajectory':
+            x0 = np.array([self.vehicle_local_position[0],
+                           self.vehicle_local_position[1],
+                           self.vehicle_local_position[2],
+                           self.vehicle_local_velocity[0],
+                           self.vehicle_local_velocity[1],
+                           self.vehicle_local_velocity[2],
+                           self.vehicle_attitude[0],
+                           self.vehicle_attitude[1],
+                           self.vehicle_attitude[2],
+                           self.vehicle_attitude[3],
+                           self.vehicle_angular_velocity[0],
+                           self.vehicle_angular_velocity[1],
+                           self.vehicle_angular_velocity[2]]).reshape(13, 1)
 
-        #t1_start = perf_counter()
-        u_pred, x_pred = self.mpc.solve(x0)
-        #t1_stop = perf_counter()
-        #print("Elapsed time during the whole program in seconds:",  t1_stop - t1_start)
+        if self.mode == 'direct_allocation_trajectory':
+            ref = np.concatenate((self.setpoint_position, np.zeros(3), self.setpoint_attitude, np.zeros(3), np.zeros(4)), axis=0)
+            ref = np.repeat(ref.reshape((-1, 1)), self.mpc.N, axis=1)
+            print("Reference: ", ref[6:10, 0])
+            print("X0: ", x0[6:10].T)
+            u_pred, x_pred = self.mpc.solve(x0, ref=ref)
+        else:
+            u_pred, x_pred = self.mpc.solve(x0)
 
         idx = 0
         predicted_path_msg = Path()
         for predicted_state in x_pred:
             idx = idx + 1
             # Publish time history of the vehicle path
-            predicted_pose_msg = vector2PoseMsg('map', predicted_state[0:3] + self.setpoint_position, self.setpoint_attitude)
+            predicted_pose_msg = vector2PoseMsg('map', self.setpoint_position, self.setpoint_attitude)
             predicted_path_msg.header = predicted_pose_msg.header
             predicted_path_msg.poses.append(predicted_pose_msg)
         self.predicted_path_pub.publish(predicted_path_msg)
@@ -360,7 +383,7 @@ class SpacecraftMPC(Node):
         if self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
             if self.mode == 'rate':
                 self.publish_rate_setpoint(u_pred)
-            elif self.mode == 'direct_allocation':
+            elif self.mode == 'direct_allocation' or self.mode == 'direct_allocation_trajectory':
                 self.publish_direct_actuator_setpoint(u_pred)
             elif self.mode == 'wrench':
                 self.publish_wrench_setpoint(u_pred)

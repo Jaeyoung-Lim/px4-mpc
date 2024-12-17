@@ -64,12 +64,14 @@ class SpacecraftDirectAllocationMPC():
         ocp.dims.N = N_horizon
 
         # set cost
-        Q_mat = np.diag([5e1, 5e1, 5e1,
-                         2e3, 2e3, 2e3,
-                         30e2, # 5e2, 5e2, 5e2,
-                         1e2, 1e2, 1e2])
-        Q_e = 20 * Q_mat
+        Q_mat = np.diag([1e2, 1e2, 1e2,
+                        1e1, 1e1, 1e1,
+                        5e2,
+                        2e1, 2e1, 2e1])
+
+        Q_e = 10 * Q_mat
         R_mat = np.diag([1e1] * 4)
+        R_mat = np.diag([0.0] * 4)
 
         n_param = nx + nu
         x_u_refs = cs.MX.sym('p', n_param)
@@ -79,9 +81,12 @@ class SpacecraftDirectAllocationMPC():
         # Calculate errors
         # x : p,v,q,w               , R9 x SO(3)
         # u : Fx,Fy,Fz,Mx,My,Mz     , R6
-        x_error = model.x[0:6] - x_ref[0:6]
+        x_error = model.x[0:3] - x_ref[0:3]
+        x_error = cs.vertcat(x_error, model.x[3:6] - x_ref[3:6])
         x_error = cs.vertcat(x_error, 1 - (model.x[6:10].T @ x_ref[6:10])**2)
-        x_error = cs.vertcat(x_error, model.x[10:] - x_ref[10:])
+        x_error = cs.vertcat(x_error, model.x[10:13] - x_ref[10:13])
+        #x_error = 1 - (model.x[6:10].T @ x_ref[6:10])**2
+        # x_error = cs.vertcat(x_error, model.x[10:] - x_ref[10:])
         # x_error = model.x - x_ref
         u_error = model.u - u_ref
 
@@ -140,7 +145,7 @@ class SpacecraftDirectAllocationMPC():
         # Set reference
         zero_ref = np.zeros(self.model.get_acados_model().x.size()[0] + self.model.get_acados_model().u.size()[0])
         zero_ref[6] = 1.0
-        a = time.perf_counter()
+        # a = time.perf_counter()
         for i in range(self.N):
             if ref is not None:
                 # Assumed ref structure: (nx+nu) x N  - last u_ref is not used
@@ -159,10 +164,11 @@ class SpacecraftDirectAllocationMPC():
         if verbose:
             self.ocp_solver.print_statistics() # encapsulates: stat = ocp_solver.get_stats("statistics")
 
-        print(f"Set ref time: {time.perf_counter() - a} - Cost: {ocp_solver.get_cost()}")
-
         if status != 0:
             raise Exception(f'acados returned status {status}.')
+
+        # Print cost:
+        print(f"Cost: {ocp_solver.get_cost()}")
 
         N = self.N
         nx = self.model.get_acados_model().x.size()[0]
