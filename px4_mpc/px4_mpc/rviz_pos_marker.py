@@ -150,7 +150,13 @@ class MinimalClientAsync(Node):
 
     def __init__(self):
         super().__init__('minimal_client_async')
-        self.cli = self.create_client(SetPose, '/set_pose')
+
+        # Declare and retrieve the namespace parameter
+        self.declare_parameter('namespace', '')  # Default to empty namespace
+        self.namespace = self.get_parameter('namespace').value
+        self.namespace_prefix = f'/{self.namespace}' if self.namespace else ''
+
+        self.cli = self.create_client(SetPose, f'{self.namespace_prefix}/set_pose')
         while not self.cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service not available, waiting again...')
         self.req = SetPose.Request()
