@@ -39,7 +39,7 @@ import casadi as cs
 class SpacecraftRateMPC():
     def __init__(self, model):
         self.model = model
-        self.Tf = 1.0
+        self.Tf = 5.0
         self.N = 50
 
         self.x0 = np.array([0.01, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0])
@@ -66,9 +66,9 @@ class SpacecraftRateMPC():
         ocp.dims.N = N_horizon
 
         # set cost
-        Q_mat = 2*np.diag([10e1, 10e1, 10e1, 1e1, 1e1, 1e1, 0.0, 0.1, 0.1, 0.1])
-        Q_e = 2*np.diag([30e2, 30e2, 30e2, 1e2, 1e2, 1e2, 0.0, 0.0, 0.0, 0.0])
-        R_mat = 2*np.diag([1e1, 1e1, 1e1, 5e2, 5e2, 5e2])
+        Q_mat = np.diag([5e1, 5e1, 5e1, 2e3, 2e3, 2e3, 5e2, 5e2, 5e2, 5e2])
+        Q_e = 20 * Q_mat
+        R_mat = 2*np.diag([1e1, 1e1, 1e1, 3e2, 3e2, 3e2])
 
         # the 'EXTERNAL' cost type can be used to define general cost terms
         # NOTE: This leads to additional (exact) hessian contributions when using GAUSS_NEWTON hessian.
@@ -89,8 +89,8 @@ class SpacecraftRateMPC():
         ocp.cost.yref_e = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0])
 
         # set constraints
-        ocp.constraints.lbu = np.array([-Fmax, -Fmax, -Fmax, -wmax, -wmax, -0.5*wmax])
-        ocp.constraints.ubu = np.array([+Fmax, +Fmax, +Fmax, wmax, wmax, 0.5*wmax])
+        ocp.constraints.lbu = np.array([-Fmax, -Fmax, -Fmax, -wmax, -wmax, -wmax])
+        ocp.constraints.ubu = np.array([+Fmax, +Fmax, +Fmax, wmax, wmax, wmax])
         ocp.constraints.idxbu = np.array([0, 1, 2, 3, 4, 5])
 
         ocp.constraints.x0 = x0
