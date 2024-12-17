@@ -301,9 +301,9 @@ class SpacecraftMPC(Node):
         error_position = self.vehicle_local_position - self.setpoint_position
 
         if self.mode == 'rate':
-            x0 = np.array([error_position[0],
-                           error_position[1],
-                           error_position[2],
+            x0 = np.array([self.vehicle_local_position[0],
+                           self.vehicle_local_position[1],
+                           self.vehicle_local_position[2],
                            self.vehicle_local_velocity[0],
                            self.vehicle_local_velocity[1],
                            self.vehicle_local_velocity[2],
