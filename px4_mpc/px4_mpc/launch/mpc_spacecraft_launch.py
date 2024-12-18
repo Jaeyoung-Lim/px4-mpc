@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ############################################################################
 #
-#   Copyright (C) 2022 PX4 Development Team. All rights reserved.
+#   Copyright (C) 2024 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -37,26 +37,41 @@ __contact__ = "padr@kth.se, jalim@ethz.ch"
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
 
 
 def generate_launch_description():
-    # Declare namespace argument
+    # Declare launch arguments
+    mode_arg = DeclareLaunchArgument(
+        'mode',
+        default_value='wrench',
+        description='Mode of the controller (rate, wrench, direct_allocation)'
+    )
+
     namespace_arg = DeclareLaunchArgument(
         'namespace',
         default_value='',  # Default namespace is empty
         description='Namespace for all nodes'
     )
 
-    # Get and process the namespace value
+    setpoint_from_rviz_arg = DeclareLaunchArgument(
+        'setpoint_from_rviz',
+        default_value='true',
+        description='Publish setpoint pose via rviz'
+    )
+
+    mode = LaunchConfiguration('mode')
     namespace = LaunchConfiguration('namespace')
+    setpoint_from_rviz = LaunchConfiguration('setpoint_from_rviz')
 
     return LaunchDescription([
+        mode_arg,
         namespace_arg,
-
+        setpoint_from_rviz_arg,
         Node(
             package='px4_mpc',
             namespace=namespace,
@@ -65,8 +80,9 @@ def generate_launch_description():
             output='screen',
             emulate_tty=True,
             parameters=[
-                {'mode': 'direct_allocation'},
-                {'namespace': namespace}
+                {'mode': mode},
+                {'namespace': namespace},
+                {'setpoint_from_rviz': setpoint_from_rviz}
             ]
         ),
         Node(
@@ -78,14 +94,9 @@ def generate_launch_description():
             emulate_tty=True,
             parameters=[
                 {'namespace': namespace}
-            ]
+            ],
+            condition=IfCondition(LaunchConfiguration('setpoint_from_rviz'))
         ),
-        # Node(
-        #     package='micro_ros_agent',
-        #     executable='micro_ros_agent',
-        #     arguments=['udp4', '-p', '8888'],
-        #     parameters=[{'use_sim_time': 1}],
-        #     output='screen'),
         Node(
             package='px4_offboard',
             namespace=namespace,
@@ -93,7 +104,8 @@ def generate_launch_description():
             name='visualizer',
             parameters=[
                 {'namespace': namespace}
-            ]
+            ],
+            condition=IfCondition(LaunchConfiguration('setpoint_from_rviz'))
         ),
         Node(
             package='rviz2',
@@ -101,5 +113,6 @@ def generate_launch_description():
             executable='rviz2',
             name='rviz2',
             arguments=['-d', os.path.join(get_package_share_directory('px4_mpc'), 'config.rviz')],
+            condition=IfCondition(LaunchConfiguration('setpoint_from_rviz'))
         ),
     ])

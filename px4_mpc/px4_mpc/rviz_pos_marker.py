@@ -116,41 +116,33 @@ def make6DofMarker(server, menu_handler, process_feedback, fixed, interaction_mo
         int_marker.description += '\n' + control_modes_dict[interaction_mode]
 
     if show_6dof:
-        control = InteractiveMarkerControl()
-        control.orientation.w = 1.0
-        control.orientation.x = 1.0
-        control.orientation.y = 0.0
-        control.orientation.z = 0.0
-        normalizeQuaternion(control.orientation)
-        control.name = 'move_x'
-        control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-        if fixed:
-            control.orientation_mode = InteractiveMarkerControl.FIXED
-        int_marker.controls.append(control)
+        for axis, name in [(1.0, 'move_x'), (2.0, 'move_y'), (3.0, 'move_z')]:
+            control = InteractiveMarkerControl()
+            control.orientation.w = 1.0
+            control.orientation.x = float(axis == 1.0)
+            control.orientation.y = float(axis == 2.0)
+            control.orientation.z = float(axis == 3.0)
+            normalizeQuaternion(control.orientation)
+            control.name = name
+            control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
+            if fixed:
+                control.orientation_mode = InteractiveMarkerControl.FIXED
+            int_marker.controls.append(control)
 
-        control = InteractiveMarkerControl()
-        control.orientation.w = 1.0
-        control.orientation.x = 0.0
-        control.orientation.y = 1.0
-        control.orientation.z = 0.0
-        normalizeQuaternion(control.orientation)
-        control.name = 'move_z'
-        control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-        if fixed:
-            control.orientation_mode = InteractiveMarkerControl.FIXED
-        int_marker.controls.append(control)
+        # Rotation controls
+        for axis, name in [(1.0, 'rotate_x'), (2.0, 'rotate_y'), (3.0, 'rotate_z')]:
+            control = InteractiveMarkerControl()
+            control.orientation.w = 1.0
+            control.orientation.x = float(axis == 1.0)
+            control.orientation.y = float(axis == 2.0)
+            control.orientation.z = float(axis == 3.0)
+            normalizeQuaternion(control.orientation)
+            control.name = name
+            control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
+            if fixed:
+                control.orientation_mode = InteractiveMarkerControl.FIXED
+            int_marker.controls.append(control)
 
-        control = InteractiveMarkerControl()
-        control.orientation.w = 1.0
-        control.orientation.x = 0.0
-        control.orientation.y = 0.0
-        control.orientation.z = 1.0
-        normalizeQuaternion(control.orientation)
-        control.name = 'move_y'
-        control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-        if fixed:
-            control.orientation_mode = InteractiveMarkerControl.FIXED
-        int_marker.controls.append(control)
     server.insert(int_marker, feedback_callback=process_feedback)
     menu_handler.apply(server, int_marker.name)
 
@@ -204,7 +196,7 @@ class ProcessFeedback():
         make6DofMarker(self.server, self.menu_handler, self.processFeedback, True, InteractiveMarkerControl.NONE, position, True)
         self.server.applyChanges()
 
-    
+
     def processFeedback(self, feedback):
         log_prefix = (
             f"Feedback from marker '{feedback.marker_name}' / control '{feedback.control_name}'"
@@ -239,7 +231,7 @@ class ProcessFeedback():
             # node.get_logger().info(
             #     f'{log_prefix}: Setpose: {self.marker_pose}'
             # )
-            
+
         elif feedback.event_type == InteractiveMarkerFeedback.MOUSE_DOWN:
             self.node.get_logger().info(f'{log_prefix}: mouse down at {log_mouse}')
         elif feedback.event_type == InteractiveMarkerFeedback.MOUSE_UP:
