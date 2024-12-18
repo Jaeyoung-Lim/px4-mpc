@@ -48,7 +48,7 @@ def generate_launch_description():
     # Declare launch arguments
     mode_arg = DeclareLaunchArgument(
         'mode',
-        default_value='direct_allocation_trajectory',
+        default_value='rate',
         description='Mode of the controller (rate, wrench, direct_allocation)'
     )
 

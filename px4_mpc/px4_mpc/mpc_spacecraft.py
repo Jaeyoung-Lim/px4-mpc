@@ -169,11 +169,6 @@ class SpacecraftMPC(Node):
             from px4_mpc.controllers.spacecraft_direct_allocation_mpc import SpacecraftDirectAllocationMPC
             self.model = SpacecraftDirectAllocationModel()
             self.mpc = SpacecraftDirectAllocationMPC(self.model)
-        elif self.mode == 'direct_allocation_trajectory':
-            from px4_mpc.models.spacecraft_direct_allocation_model import SpacecraftDirectAllocationModel
-            from px4_mpc.controllers.spacecraft_direct_allocation_traj_mpc import SpacecraftDirectAllocationMPC
-            self.model = SpacecraftDirectAllocationModel()
-            self.mpc = SpacecraftDirectAllocationMPC(self.model)
 
         self.vehicle_attitude = np.array([1.0, 0.0, 0.0, 0.0])
         self.vehicle_local_position = np.array([0.0, 0.0, 0.0])
@@ -311,41 +306,30 @@ class SpacecraftMPC(Node):
         offboard_msg.direct_actuator = False
         if self.mode == 'rate':
             offboard_msg.body_rate = True
-        elif self.mode == 'direct_allocation' or self.mode == 'direct_allocation_trajectory':
+        elif self.mode == 'direct_allocation':
             offboard_msg.direct_actuator = True
         elif self.mode == 'wrench':
             offboard_msg.thrust_and_torque = True
         self.publisher_offboard_mode.publish(offboard_msg)
 
-        error_position = self.vehicle_local_position - self.setpoint_position
-        error_attitude = self.vehicle_attitude - self.setpoint_attitude
-
+        # Set state and references for each MPC
         if self.mode == 'rate':
-            x0 = np.array([error_position[0],
-                           error_position[1],
-                           error_position[2],
+            x0 = np.array([self.vehicle_local_position[0],
+                           self.vehicle_local_position[1],
+                           self.vehicle_local_position[2],
                            self.vehicle_local_velocity[0],
                            self.vehicle_local_velocity[1],
                            self.vehicle_local_velocity[2],
-                           error_attitude[0],
-                           error_attitude[1],
-                           error_attitude[2],
-                           error_attitude[3]]).reshape(10, 1)
-        elif self.mode == 'direct_allocation' or self.mode == 'wrench':
-            x0 = np.array([error_position[0],
-                           error_position[1],
-                           error_position[2],
-                           self.vehicle_local_velocity[0],
-                           self.vehicle_local_velocity[1],
-                           self.vehicle_local_velocity[2],
-                           error_attitude[0],
-                           error_attitude[1],
-                           error_attitude[2],
-                           error_attitude[3],
-                           self.vehicle_angular_velocity[0],
-                           self.vehicle_angular_velocity[1],
-                           self.vehicle_angular_velocity[2]]).reshape(13, 1)
-        elif self.mode == 'direct_allocation_trajectory':
+                           self.vehicle_attitude[0],
+                           self.vehicle_attitude[1],
+                           self.vehicle_attitude[2],
+                           self.vehicle_attitude[3]]).reshape(10, 1)
+            ref = np.concatenate((self.setpoint_position,       # position
+                                  np.zeros(3),                  # velocity
+                                  self.setpoint_attitude,       # attitude
+                                  np.zeros(6)), axis=0)         # inputs reference (F, w)
+            ref = np.repeat(ref.reshape((-1, 1)), self.mpc.N+1, axis=1)
+        elif self.mode == 'wrench':
             x0 = np.array([self.vehicle_local_position[0],
                            self.vehicle_local_position[1],
                            self.vehicle_local_position[2],
@@ -359,16 +343,39 @@ class SpacecraftMPC(Node):
                            self.vehicle_angular_velocity[0],
                            self.vehicle_angular_velocity[1],
                            self.vehicle_angular_velocity[2]]).reshape(13, 1)
-
-        if self.mode == 'direct_allocation_trajectory':
-            a = perf_counter()
-            ref = np.concatenate((self.setpoint_position, np.zeros(3), self.setpoint_attitude, np.zeros(3), np.zeros(4)), axis=0)
+            ref = np.concatenate((self.setpoint_position,       # position
+                                  np.zeros(3),                  # velocity
+                                  self.setpoint_attitude,       # attitude
+                                  np.zeros(3),                  # angular velocity
+                                  np.zeros(3)), axis=0)         # inputs reference (F, torque)
             ref = np.repeat(ref.reshape((-1, 1)), self.mpc.N+1, axis=1)
-            c = perf_counter()
-            u_pred, x_pred = self.mpc.solve(x0, ref=ref)
+        elif self.mode == 'direct_allocation':
+            x0 = np.array([self.vehicle_local_position[0],
+                           self.vehicle_local_position[1],
+                           self.vehicle_local_position[2],
+                           self.vehicle_local_velocity[0],
+                           self.vehicle_local_velocity[1],
+                           self.vehicle_local_velocity[2],
+                           self.vehicle_attitude[0],
+                           self.vehicle_attitude[1],
+                           self.vehicle_attitude[2],
+                           self.vehicle_attitude[3],
+                           self.vehicle_angular_velocity[0],
+                           self.vehicle_angular_velocity[1],
+                           self.vehicle_angular_velocity[2]]).reshape(13, 1)
+            ref = np.concatenate((self.setpoint_position,       # position
+                                  np.zeros(3),                  # velocity
+                                  self.setpoint_attitude,       # attitude
+                                  np.zeros(3),                  # angular velocity
+                                  np.zeros(4)), axis=0)         # inputs reference (u1, ..., u4) for 2D platform
+            ref = np.repeat(ref.reshape((-1, 1)), self.mpc.N+1, axis=1)
         else:
-            u_pred, x_pred = self.mpc.solve(x0)
+            raise ValueError(f'Invalid mode: {self.mode}')
 
+        # Solve MPC
+        u_pred, x_pred = self.mpc.solve(x0, ref=ref)
+
+        # Colect data
         idx = 0
         predicted_path_msg = Path()
         for predicted_state in x_pred:

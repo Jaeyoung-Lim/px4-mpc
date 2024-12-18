@@ -40,7 +40,7 @@ class SpacecraftWrenchMPC():
     def __init__(self, model):
         self.model = model
         self.Tf = 5.0
-        self.N = 50
+        self.N = 49
 
         self.x0 = np.array([0.01, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -59,30 +59,47 @@ class SpacecraftWrenchMPC():
 
         nx = model.x.size()[0]
         nu = model.u.size()[0]
-        ny = nx + nu
-        ny_e = nx
 
         # set dimensions
         ocp.dims.N = N_horizon
+        ocp.solver_options.N_horizon = N_horizon
 
         # set cost
-        Q_mat = np.diag([5e1, 5e1, 5e1,
-                         2e3, 2e3, 2e3,
-                         5e2, 5e2, 5e2, 5e2,
-                         3e2, 3e2, 3e2])
-        Q_e = 20 * Q_mat
-        R_mat = 2*np.diag([1e1, 1e1, 1e1])
+        Q_mat = np.diag([5, 5, 5,
+                        0.8, 0.8, 0.8,
+                        8e3,
+                        2, 2, 2])
+        Q_e = 10 * Q_mat
+        R_mat = np.diag([0.001] * 6)
 
-        ocp.cost.cost_type = 'NONLINEAR_LS'
-        ocp.cost.cost_type_e = 'NONLINEAR_LS'
-        ocp.cost.W = scipy.linalg.block_diag(Q_mat, R_mat)
-        ocp.cost.W_e = scipy.linalg.block_diag(Q_e)
+        # References:
+        x_ref = cs.MX.sym('x_ref', (13, 1))
+        u_ref = cs.MX.sym('u_ref', (3, 1))
 
+        # Calculate errors
+        # x : p,v,q,w               , R9 x SO(3)
+        # u : Fx,Fy,Fz,Mx,My,Mz     , R6
+        x = ocp.model.x
+        u = ocp.model.u
 
-        ocp.model.cost_y_expr = cs.vertcat(model.x, model.u)
-        ocp.model.cost_y_expr_e = model.x
-        ocp.cost.yref   = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        ocp.cost.yref_e = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        x_error = x[0:3] - x_ref[0:3]
+        x_error = cs.vertcat(x_error, x[3:6] - x_ref[3:6])
+        x_error = cs.vertcat(x_error, 1 - (x[6:10].T @ x_ref[6:10])**2)
+        x_error = cs.vertcat(x_error, x[10:13] - x_ref[10:13])
+        u_error = u - u_ref
+
+        ocp.model.p = cs.vertcat(x_ref, u_ref)
+
+        # define cost with parametric reference
+        ocp.cost.cost_type = 'EXTERNAL'
+        ocp.cost.cost_type_e = 'EXTERNAL'
+
+        ocp.model.cost_expr_ext_cost = x_error.T @ Q_mat @ x_error + u_error.T @ R_mat @ u_error
+        ocp.model.cost_expr_ext_cost_e = x_error.T @ Q_e @ x_error
+
+        # Initialize parameters
+        p_0 = np.concatenate((x0, np.zeros(nu)))  # First step is error 0 since x_ref = x0
+        ocp.parameter_values = p_0
 
         # set constraints
         ocp.constraints.lbu = np.array([-Fmax, -Fmax, -Tmax])
@@ -117,10 +134,25 @@ class SpacecraftWrenchMPC():
 
         return ocp_solver, acados_integrator
 
-    def solve(self, x0, verbose=False):
+    def solve(self, x0, verbose=False, ref=None):
 
         # preparation phase
         ocp_solver = self.ocp_solver
+
+        # Set reference, create zero reference
+        if ref is None:
+            zero_ref = np.zeros(self.model.get_acados_model().x.size()[0] + self.model.get_acados_model().u.size()[0])
+            zero_ref[6] = 1.0
+
+        for i in range(self.N+1):
+            if ref is not None:
+                # Assumed ref structure: (nx+nu) x N+1
+                # NOTE: last u_ref is not used
+                p_i = ref[:, i]
+                ocp_solver.set(i, "p", p_i)
+            else:
+                # set all references to 0
+                ocp_solver.set(i, "p", zero_ref)
 
         # set initial state
         ocp_solver.set(0, "lbx", x0)
