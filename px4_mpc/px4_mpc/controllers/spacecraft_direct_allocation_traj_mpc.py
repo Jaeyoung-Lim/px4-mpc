@@ -40,8 +40,8 @@ import time
 class SpacecraftDirectAllocationMPC():
     def __init__(self, model):
         self.model = model
-        self.Tf = 5.0
-        self.N = 50
+        self.Tf = 0.2
+        self.N = 2
 
         self.x0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -62,35 +62,35 @@ class SpacecraftDirectAllocationMPC():
         print(f"nx: {nx}, nu: {nu}")
         # set dimensions
         ocp.dims.N = N_horizon
+        ocp.solver_options.N_horizon = N_horizon
 
         # set cost
-        Q_mat = np.diag([1e2, 1e2, 1e2,
-                        1e1, 1e1, 1e1,
-                        5e2,
-                        2e1, 2e1, 2e1])
+        Q_mat = np.diag([5, 5, 0,
+                        0.8, 0.8, 0,
+                        600,
+                        0, 0, 2])
 
         Q_e = 10 * Q_mat
-        R_mat = np.diag([1e1] * 4)
-        R_mat = np.diag([0.0] * 4)
+        R_mat = np.diag([0.001] * 4)
+        # R_mat = np.diag([0.0] * 4)
 
-        n_param = nx + nu
-        x_u_refs = cs.MX.sym('p', n_param)
-        x_ref = x_u_refs[0:nx]
-        u_ref = x_u_refs[nx:]
+        # References:
+        x_ref = cs.MX.sym('x_ref', (13, 1))
+        u_ref = cs.MX.sym('u_ref', (4, 1))
 
         # Calculate errors
         # x : p,v,q,w               , R9 x SO(3)
         # u : Fx,Fy,Fz,Mx,My,Mz     , R6
-        x_error = model.x[0:3] - x_ref[0:3]
-        x_error = cs.vertcat(x_error, model.x[3:6] - x_ref[3:6])
-        x_error = cs.vertcat(x_error, 1 - (model.x[6:10].T @ x_ref[6:10])**2)
-        x_error = cs.vertcat(x_error, model.x[10:13] - x_ref[10:13])
-        #x_error = 1 - (model.x[6:10].T @ x_ref[6:10])**2
-        # x_error = cs.vertcat(x_error, model.x[10:] - x_ref[10:])
-        # x_error = model.x - x_ref
-        u_error = model.u - u_ref
+        x = ocp.model.x
+        u = ocp.model.u
 
-        ocp.model.p = x_u_refs
+        x_error = x[0:3] - x_ref[0:3]
+        x_error = cs.vertcat(x_error, x[3:6] - x_ref[3:6])
+        x_error = cs.vertcat(x_error, 1 - (x[6:10].T @ x_ref[6:10])**2)
+        x_error = cs.vertcat(x_error, x[10:13] - x_ref[10:13])
+        u_error = u - u_ref
+
+        ocp.model.p = cs.vertcat(x_ref, u_ref)
 
         # define cost with parametric reference
         ocp.cost.cost_type = 'EXTERNAL'
@@ -110,11 +110,11 @@ class SpacecraftDirectAllocationMPC():
         ocp.constraints.x0 = x0
 
         # set options
-        # ocp.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
-        # # PARTIAL_CONDENSING_HPIPM, FULL_CONDENSING_QPOASES, FULL_CONDENSING_HPIPM,
-        # # PARTIAL_CONDENSING_QPDUNES, PARTIAL_CONDENSING_OSQP, FULL_CONDENSING_DAQP
-        # ocp.solver_options.hessian_approx = 'GAUSS_NEWTON' # 'GAUSS_NEWTON', 'EXACT'
-        # ocp.solver_options.integrator_type = 'ERK'
+        ocp.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
+        # PARTIAL_CONDENSING_HPIPM, FULL_CONDENSING_QPOASES, FULL_CONDENSING_HPIPM,
+        # PARTIAL_CONDENSING_QPDUNES, PARTIAL_CONDENSING_OSQP, FULL_CONDENSING_DAQP
+        ocp.solver_options.hessian_approx = 'GAUSS_NEWTON' # 'GAUSS_NEWTON', 'EXACT'
+        ocp.solver_options.integrator_type = 'ERK'
 
         # ocp.solver_options.print_level = 1
         use_RTI=True
@@ -146,15 +146,20 @@ class SpacecraftDirectAllocationMPC():
         zero_ref = np.zeros(self.model.get_acados_model().x.size()[0] + self.model.get_acados_model().u.size()[0])
         zero_ref[6] = 1.0
         # a = time.perf_counter()
-        for i in range(self.N):
+        for i in range(self.N+1):
             if ref is not None:
                 # Assumed ref structure: (nx+nu) x N  - last u_ref is not used
                 p_i = ref[:, i]
+                print(f"p_i: {p_i}")
                 ocp_solver.set(i, "p", p_i)
             else:
                 # set all references to 0
                 b = time.perf_counter()
                 ocp_solver.set(i, "p", zero_ref)
+
+        # Trying:
+        #val = ocp_solver.get(10, "p")
+        #print(val)
 
         # set initial state
         ocp_solver.set(0, "lbx", x0.flatten())
