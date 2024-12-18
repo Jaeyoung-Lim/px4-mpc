@@ -40,8 +40,8 @@ import time
 class SpacecraftDirectAllocationMPC():
     def __init__(self, model):
         self.model = model
-        self.Tf = 0.2
-        self.N = 2
+        self.Tf = 5.0
+        self.N = 49
 
         self.x0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -67,7 +67,7 @@ class SpacecraftDirectAllocationMPC():
         # set cost
         Q_mat = np.diag([5, 5, 0,
                         0.8, 0.8, 0,
-                        600,
+                        800e1,
                         0, 0, 2])
 
         Q_e = 10 * Q_mat

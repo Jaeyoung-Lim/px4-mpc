@@ -361,8 +361,10 @@ class SpacecraftMPC(Node):
                            self.vehicle_angular_velocity[2]]).reshape(13, 1)
 
         if self.mode == 'direct_allocation_trajectory':
+            a = perf_counter()
             ref = np.concatenate((self.setpoint_position, np.zeros(3), self.setpoint_attitude, np.zeros(3), np.zeros(4)), axis=0)
             ref = np.repeat(ref.reshape((-1, 1)), self.mpc.N+1, axis=1)
+            c = perf_counter()
             u_pred, x_pred = self.mpc.solve(x0, ref=ref)
         else:
             u_pred, x_pred = self.mpc.solve(x0)
