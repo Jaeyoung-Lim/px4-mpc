@@ -142,24 +142,20 @@ class SpacecraftDirectAllocationMPC():
         # preparation phase
         ocp_solver = self.ocp_solver
 
-        # Set reference
-        zero_ref = np.zeros(self.model.get_acados_model().x.size()[0] + self.model.get_acados_model().u.size()[0])
-        zero_ref[6] = 1.0
-        # a = time.perf_counter()
+        # Set reference, create zero reference
+        if ref is None:
+            zero_ref = np.zeros(self.model.get_acados_model().x.size()[0] + self.model.get_acados_model().u.size()[0])
+            zero_ref[6] = 1.0
+
         for i in range(self.N+1):
             if ref is not None:
                 # Assumed ref structure: (nx+nu) x N  - last u_ref is not used
                 p_i = ref[:, i]
-                print(f"p_i: {p_i}")
                 ocp_solver.set(i, "p", p_i)
             else:
                 # set all references to 0
                 b = time.perf_counter()
                 ocp_solver.set(i, "p", zero_ref)
-
-        # Trying:
-        #val = ocp_solver.get(10, "p")
-        #print(val)
 
         # set initial state
         ocp_solver.set(0, "lbx", x0.flatten())
@@ -173,7 +169,6 @@ class SpacecraftDirectAllocationMPC():
             raise Exception(f'acados returned status {status}.')
 
         # Print cost:
-        print(f"Cost: {ocp_solver.get_cost()}")
 
         N = self.N
         nx = self.model.get_acados_model().x.size()[0]
