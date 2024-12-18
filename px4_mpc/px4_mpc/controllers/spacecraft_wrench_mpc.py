@@ -65,12 +65,12 @@ class SpacecraftWrenchMPC():
         ocp.solver_options.N_horizon = N_horizon
 
         # set cost
-        Q_mat = np.diag([5, 5, 5,
-                        0.8, 0.8, 0.8,
-                        8e3,
-                        2, 2, 2])
+        Q_mat = np.diag([80, 80, 80,
+                        70, 70, 70,
+                        8e4,
+                        20, 20, 20])
         Q_e = 10 * Q_mat
-        R_mat = np.diag([0.01] * 3)
+        R_mat = np.diag([0.00001, 0.00001, 0.01])
 
         # References:
         x_ref = cs.MX.sym('x_ref', (13, 1))

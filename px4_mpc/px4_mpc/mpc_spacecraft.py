@@ -381,7 +381,7 @@ class SpacecraftMPC(Node):
         for predicted_state in x_pred:
             idx = idx + 1
             # Publish time history of the vehicle path
-            predicted_pose_msg = vector2PoseMsg('map', self.setpoint_position, self.setpoint_attitude)
+            predicted_pose_msg = vector2PoseMsg('map', predicted_state[0:3], self.setpoint_attitude)
             predicted_path_msg.header = predicted_pose_msg.header
             predicted_path_msg.poses.append(predicted_pose_msg)
         self.predicted_path_pub.publish(predicted_path_msg)
