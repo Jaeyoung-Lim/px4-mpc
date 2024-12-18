@@ -60,9 +60,6 @@ from mpc_msgs.srv import SetPose
 from time import perf_counter
 
 
-
-
-
 def vector2PoseMsg(frame_id, position, attitude):
     pose_msg = PoseStamped()
     # msg.header.stamp = Clock().now().nanoseconds / 1000
@@ -76,7 +73,6 @@ def vector2PoseMsg(frame_id, position, attitude):
     pose_msg.pose.position.y = float(position[1])
     pose_msg.pose.position.z = float(position[2])
     return pose_msg
-
 
 
 class SpacecraftMPC(Node):
