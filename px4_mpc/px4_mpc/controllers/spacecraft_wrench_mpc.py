@@ -70,7 +70,7 @@ class SpacecraftWrenchMPC():
                         8e3,
                         2, 2, 2])
         Q_e = 10 * Q_mat
-        R_mat = np.diag([0.001] * 6)
+        R_mat = np.diag([0.01] * 3)
 
         # References:
         x_ref = cs.MX.sym('x_ref', (13, 1))
