@@ -39,13 +39,9 @@ import casadi as cs
 class SpacecraftRateMPC():
     def __init__(self, model):
         self.model = model
-<<<<<<< HEAD
-        self.Tf = 1.0
-        self.N = 50
-=======
+
         self.Tf = 5.0
         self.N = 49
->>>>>>> 00d9bf9c36cc8bcf8c48cbda285a4303c44c3f3b
 
         self.x0 = np.array([0.01, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0])
 
@@ -105,8 +101,8 @@ class SpacecraftRateMPC():
         ocp.parameter_values = p_0
 
         # set constraints
-        ocp.constraints.lbu = np.array([-Fmax, -Fmax, -Fmax, -wmax, -wmax, -0.5*wmax])
-        ocp.constraints.ubu = np.array([+Fmax, +Fmax, +Fmax, wmax, wmax, 0.5*wmax])
+        ocp.constraints.lbu = np.array([-Fmax, -Fmax, -Fmax, -wmax, -wmax, -wmax])
+        ocp.constraints.ubu = np.array([+Fmax, +Fmax, +Fmax, wmax, wmax, wmax])
         ocp.constraints.idxbu = np.array([0, 1, 2, 3, 4, 5])
 
         ocp.constraints.x0 = x0

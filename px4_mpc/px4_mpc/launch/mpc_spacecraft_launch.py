@@ -38,7 +38,7 @@ __contact__ = "padr@kth.se, jalim@ethz.ch"
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -48,7 +48,7 @@ def generate_launch_description():
     # Declare launch arguments
     mode_arg = DeclareLaunchArgument(
         'mode',
-        default_value='wrench',
+        default_value='direct_allocation',
         description='Mode of the controller (rate, wrench, direct_allocation)'
     )
 
@@ -96,6 +96,18 @@ def generate_launch_description():
                 {'namespace': namespace}
             ],
             condition=IfCondition(LaunchConfiguration('setpoint_from_rviz'))
+        ),
+        Node(
+            package='px4_mpc',
+            namespace=namespace,
+            executable='test_setpoints',
+            name='test_setpoints',
+            output='screen',
+            emulate_tty=True,
+            parameters=[
+                {'namespace': namespace}
+            ],
+            condition=UnlessCondition(LaunchConfiguration('setpoint_from_rviz'))
         ),
         Node(
             package='px4_offboard',

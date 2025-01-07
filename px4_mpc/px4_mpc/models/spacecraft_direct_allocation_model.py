@@ -40,7 +40,7 @@ class SpacecraftDirectAllocationModel():
         self.name = 'spacecraft_direct_allocation_model'
 
         # constants
-        self.mass = 15.
+        self.mass = 16.8
         self.inertia = np.diag((0.1454, 0.1366, 0.1594))
         self.max_thrust = 1.5
         self.max_rate = 0.5
