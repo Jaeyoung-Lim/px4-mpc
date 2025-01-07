@@ -40,7 +40,13 @@ In order to launch the mpc quadrotor in a ros2 launchfile,
 ros2 launch px4_mpc mpc_quadrotor_launch.py 
 ```
 
-Use a custom namespace
-```
-ros2 launch px4_mpc mpc_spacecraft_launch.py namespace:=<namespace> 
+The mpc_spacecraft_launch.py file includes optional arguments:
+
+- **mode**: Control mode (wrench by default). Options: wrench, rate, direct_allocation.  
+- **namespace**: Spacecraft namespace ('' by default).  
+- **setpoint_from_rviz**: Use RViz for setpoints (True by default).
+
+**Example:**
+```bash
+ros2 launch px4_mpc mpc_spacecraft_launch.py mode:=wrench namespace:=<namespace> setpoint_from_rviz:=False
 ```
