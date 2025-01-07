@@ -66,12 +66,12 @@ class SpacecraftDirectAllocationMPC():
         ocp.solver_options.N_horizon = N_horizon
 
         # set cost
-        Q_mat = np.diag([5, 5, 5,
-                        0.8, 0.8, 0.8,
-                        8e3,
-                        2, 2, 2])
-        Q_e = 10 * Q_mat
-        R_mat = np.diag([0.001] * 4)
+        Q_mat = np.diag([5e1, 5e1, 5e1,
+                         1e1, 1e1, 1e1,
+                         8e3,
+                         1e1, 1e1, 1e1])
+        Q_e = 20 * Q_mat
+        R_mat = np.diag([1e1] * 4)
 
         # References:
         x_ref = cs.MX.sym('x_ref', (13, 1))
