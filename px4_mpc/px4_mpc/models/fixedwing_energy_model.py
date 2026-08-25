@@ -1,7 +1,7 @@
 import casadi as cs
 from acados_template import AcadosModel
 
-from px4_mpc.models.fixedwing_model import FixedWingModel, skew_symmetric, q_to_rot_mat
+from models.fixedwing_model import FixedWingModel, skew_symmetric, q_to_rot_mat
 
 
 class FixedWingEnergyModel(FixedWingModel):

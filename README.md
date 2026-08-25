@@ -23,6 +23,14 @@ If you find this package useful in an academic context, please consider citing t
 ## Setup
 The MPC formulation uses acados. In order to install acados, follow the following [instructions](https://docs.acados.org/installation/). After building `acados` remember to install the python interface as described [here](https://docs.acados.org/python_interface/index.html).
 
+acados also needs two environment variables set at **runtime** (not just build time), or solvers will
+fail to load with an error like `OSError: libqpOASES_e.so: cannot open shared object file`:
+```bash
+export ACADOS_SOURCE_DIR=/path/to/acados
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ACADOS_SOURCE_DIR/lib
+```
+Add these to your shell profile (e.g. `~/.bashrc`) so every terminal that runs an MPC node or script has them.
+
 To build the code, do the following steps:
 
 ```bash
@@ -116,6 +124,27 @@ For this example to work, make sure you have run the PX4 SITL with the same name
 ```bash
 PX4_UXRCE_DDS_NS=pop make px4_sitl_spacecraft gz_atmos
 ```
+
+## Fixed-Wing Minimum-Sink Glide Analysis
+
+`FixedWingEnergyMPC` (`px4_mpc/px4_mpc/controllers/fixedwing_energy_mpc.py`) is a zero-throttle
+glide controller whose cost is the aircraft's specific energy rate (`edot = g*hdot + V*Vdot`),
+built on `FixedWingEnergyModel` (`px4_mpc/px4_mpc/models/fixedwing_energy_model.py`), which adds
+an explicit lift/drag polar to the reduced fixed-wing dynamics. With throttle locked to zero,
+minimizing `-edot` is equivalent to minimizing sink rate, and the controller converges to the
+classical minimum-sink trim airspeed regardless of the aircraft's initial speed or attitude.
+
+To reproduce the sink-polar plot (zero-throttle trim curve, the min-sink/best-glide points, and
+two closed-loop MPC runs converging to the trim from arbitrary off-trim, banked initial states):
+
+```bash
+cd ~/ros2_ws/src/px4-mpc/px4_mpc/px4_mpc/test
+python3 plot_min_sink_polar.py
+```
+
+This requires `acados` (see [Setup](#setup) above) plus `numpy`, `scipy`, and `matplotlib`. It opens
+the plot in a window by default; pass `--out <path>` to save a PNG instead, or `--steps <n>` to
+change the closed-loop simulation length (default 500 steps at `Ts=0.05s`, i.e. 25s per run).
 
 ## QGC Setup or Headless (no-QGC) Setup
 

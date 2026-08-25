@@ -66,7 +66,14 @@ class FixedWingEnergyMPC:
         ocp.cost.cost_type_e = 'EXTERNAL'
         steady_penalty = self.w_steady * (self.model.accel_expr**2 + self.model.pitch_rate_expr**2)
         reg = 1e-3 * ocp.model.u[2]**2  # tiny roll-rate reg, just breaks the wings-level tie
-        ocp.model.cost_expr_ext_cost = -self.model.specific_energy_rate_expr + steady_penalty + reg
+        # Unlike NONLINEAR_LS, acados' EXTERNAL cost type is a raw discrete-stage cost - it is
+        # NOT scaled by Ts automatically. Multiplying by Ts here matches the continuous-time
+        # cost this was validated against (an IPOPT rollout that explicitly integrated
+        # stage_cost*dt); leaving it out doesn't change the abstract minimizer, but it changes
+        # the absolute cost/Hessian magnitude SQP_RTI's single Newton step and levenberg_marquardt
+        # regularization see each iteration, which in practice was the difference between this
+        # converging to the correct minimum-sink trim and converging ~10-100% off from it.
+        ocp.model.cost_expr_ext_cost = self.Ts * (-self.model.specific_energy_rate_expr + steady_penalty + reg)
         ocp.model.cost_expr_ext_cost_e = cs.MX(0)
 
         # ctrl constraints
@@ -92,7 +99,12 @@ class FixedWingEnergyMPC:
         ocp.solver_options.hessian_approx = 'GAUSS_NEWTON'
         ocp.solver_options.integrator_type = 'ERK'
         ocp.solver_options.nlp_solver_type = 'SQP_RTI'
-        ocp.solver_options.levenberg_marquardt = 1e-4
+        # GAUSS_NEWTON is not well-defined for an EXTERNAL cost (acados falls back to the exact
+        # Hessian, which is indefinite far from the trim manifold for this nonconvex cost); this
+        # value was tuned empirically against the Ts-scaled cost above - too small (~1e-4) lets
+        # SQP_RTI's single Newton step diverge or badly overshoot from an off-trim start, too
+        # large (>=1) converges cleanly but to the wrong fixed point.
+        ocp.solver_options.levenberg_marquardt = 0.01
         ocp.solver_options.qp_solver_cond_N = self.N
         ocp_solver = AcadosOcpSolver(ocp, json_file=json_path)
 
