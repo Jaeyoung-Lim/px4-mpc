@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 Closed-loop Dubins path following with the differentiable fixed-wing NMPC at fixed theta (the
-untrained baseline), against a plant with model mismatch and wind the MPC does not know about.
+untrained baseline), against a plant with model mismatch and wind.
+
+Like PX4 (EKF2 estimates horizontal wind), the baseline MPC is given the true horizontal wind
+by default; vertical wind and the mass / lift-slope mismatch stay unknown to it.
 
 The circuit is two Dubins paths A -> B -> A joined into a closed loop, flown for --laps laps.
 Prints cross-track / AoA / solver statistics and optionally saves a plot.
@@ -9,6 +12,7 @@ Prints cross-track / AoA / solver statistics and optionally saves a plot.
 Usage:
     python3 sim_diff_mpc_dubins.py [--airspeed 12] [--wind 0 4 0] [--radius 20]
                                    [--laps 2] [--plot out.png] [--no-build]
+                                   [--no-wind-estimate | --oracle]
 """
 import argparse
 import os
@@ -42,6 +46,8 @@ def main():
     parser.add_argument('--laps', type=float, default=2.0)
     parser.add_argument('--oracle', action='store_true',
                         help='give the MPC the true plant parameters and wind (upper bound)')
+    parser.add_argument('--no-wind-estimate', action='store_true',
+                        help='do not give the MPC the horizontal wind estimate')
     parser.add_argument('--plot', type=str, default=None)
     parser.add_argument('--no-build', action='store_true')
     args = parser.parse_args()
@@ -50,8 +56,13 @@ def main():
     true_phys = NOMINAL_MODEL.copy()
     true_phys[0], true_phys[3] = args.mass, args.c_l_a
     true_phys[4:7] = args.wind
-    # by default the MPC knows neither the wind nor the mismatch
-    theta = nominal_theta(args.airspeed, model_params=true_phys if args.oracle else None)
+    if args.oracle:
+        mpc_phys = true_phys
+    else:
+        mpc_phys = NOMINAL_MODEL.copy()
+        if not args.no_wind_estimate:
+            mpc_phys[4:6] = true_phys[4:6]  # horizontal wind, as estimated by PX4
+    theta = nominal_theta(args.airspeed, model_params=mpc_phys)
     plant = make_discrete_dynamics(mpc.Ts, n_sub=4)
 
     xs = cs.SX.sym('x', 10)
@@ -130,7 +141,10 @@ def main():
         ax[1].axhline(np.degrees(mpc.h_ub[0]), color='gray', ls=':', lw=1)
         ax[1].set_xlabel('time [s]')
         ax[1].legend()
-        label = 'Oracle' if args.oracle else 'Baseline'
+        if args.oracle:
+            label = 'Oracle'
+        else:
+            label = 'Baseline (no wind est.)' if args.no_wind_estimate else 'Baseline'
         fig.suptitle(f'{label} NMPC, V_ref {args.airspeed} m/s, wind {args.wind} m/s')
         fig.tight_layout()
         fig.savefig(args.plot, dpi=120)
