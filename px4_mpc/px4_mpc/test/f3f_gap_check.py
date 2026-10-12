@@ -19,12 +19,13 @@ import argparse
 import os
 import sys
 
+import casadi as cs
 import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from controllers.f3f_mpc import F3FMPC, default_theta  # noqa: E402
 from f3f.course import BASE_A, BASE_B  # noqa: E402
-from f3f.glider import Glider, Ridge, make_diagnostics  # noqa: E402
+from f3f.glider import Glider, Ridge, make_diagnostics, ridge_wind  # noqa: E402
 from f3f.race_optimal import node_times, resample_race, solve_race_optimal  # noqa: E402
 from f3f.simulate import default_start, run_mpc_race  # noqa: E402
 
@@ -61,8 +62,10 @@ def plot(path, ridge, mpc_log, opt, opt_diag, t_opt, mpc_time):
     th = np.linspace(0, np.pi, 200)
     a.fill_between(ridge.radius * np.cos(th), 0, ridge.radius * np.sin(th), color='0.85')
     ee, hh = np.meshgrid(np.linspace(-160, 20, 120), np.linspace(1, 160, 100))
-    r4 = (ee**2 + hh**2)**2
-    w_up = -2 * ridge.wind_speed * ridge.radius**2 * ee * hh / r4
+    p = cs.SX.sym('p', 3)
+    wind = cs.Function('wind', [p], [ridge_wind(p, ridge)])
+    pts = np.stack([np.zeros(ee.size), ee.ravel(), -hh.ravel()])
+    w_up = -np.array(wind.map(ee.size)(pts))[2].reshape(ee.shape)
     w_up[ee**2 + hh**2 < ridge.radius**2] = np.nan
     cs_ = a.contourf(ee, hh, w_up, levels=np.linspace(-2, 12, 15), cmap='Blues', alpha=0.6)
     fig.colorbar(cs_, ax=a, label='updraft [m/s]')

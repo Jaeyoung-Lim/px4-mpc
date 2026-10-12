@@ -13,6 +13,14 @@ The wind field is 2D potential flow around the cylinder:
 which gives the classic slope-lift band in front of the ridge (w_up = U at 45 deg on the
 surface, decaying with 1/r^2) and speed-up over the crest.
 
+Potential flow is inviscid, so on its own it puts the strongest lift right at the surface and
+dead air at the foot of the ridge, which makes flying low and close to the face artificially
+cheap. Both wind components are therefore scaled by a near-ground profile in the height above
+terrain z (the smaller of the distance to the ridge surface and the height above the valley
+floor):
+    f(z) = (min(z, z_ref) / z_ref)^alpha       (power law, alpha ~ 1/7 for open terrain)
+smoothed so the MPC's exact Hessian stays well defined. shear_exponent = 0 disables it.
+
 Glider: point mass with body-rate inputs (Beard & McLain), no thrust, plus a first-order lag
 between commanded and actual body rates standing in for the autopilot rate loop:
     x = [p (NED), v (inertial velocity in body frame), q, omega (actual body rates)]   (13)
@@ -63,17 +71,38 @@ class Ridge:
     clearance: float = 5.0    # min distance from the ridge surface, m
     h_min: float = 5.0        # min height above the valley floor, m
     safety_e: float = 0.0     # safety line: must stay at e <= safety_e (in front of the crest)
+    shear_exponent: float = 0.14     # near-ground wind profile exponent (0: pure potential flow)
+    shear_ref_height: float = 50.0   # height above terrain where the profile reaches 1, m
+
+
+def _smooth_min(a, b, eps):
+    return 0.5 * (a + b - cs.sqrt((a - b)**2 + eps**2))
+
+
+def height_above_terrain(p, ridge: Ridge):
+    """Smoothed min of the distance to the ridge surface and the height above the floor."""
+    return _smooth_min(ridge_distance(p, ridge), -p[2], 1.0)
+
+
+def wind_profile(p, ridge: Ridge):
+    """Near-ground wind reduction factor in (0, 1]."""
+    if ridge.shear_exponent == 0.0:
+        return 1.0
+    z = height_above_terrain(p, ridge)
+    z = 0.5 * (z + cs.sqrt(z**2 + 1.0))  # smooth max(z, 0), stays > 0
+    z = _smooth_min(z, ridge.shear_ref_height, 0.1)
+    return (z / ridge.shear_ref_height)**ridge.shear_exponent
 
 
 def ridge_wind(p, ridge: Ridge):
-    """NED wind vector at NED position p."""
+    """NED wind vector at NED position p (potential flow times the near-ground profile)."""
     e, h = p[1], -p[2]
     r2 = e**2 + h**2 + 1e-6
     r4 = r2**2
     U, R = ridge.wind_speed, ridge.radius
     w_e = U * (1 - R**2 * (e**2 - h**2) / r4)
     w_up = -2 * U * R**2 * e * h / r4
-    return cs.vertcat(0, w_e, -w_up)
+    return wind_profile(p, ridge) * cs.vertcat(0, w_e, -w_up)
 
 
 def ridge_distance(p, ridge: Ridge):
