@@ -12,7 +12,8 @@ small, short-horizon MPC is already near-optimal for this setting.
 
 Usage:
     python3 f3f_gap_check.py [--no-build] [--N 40] [--w-dist-e 1] [--w-energy-e 1]
-                             [--wind 10] [--N-leg 40] [--plot out.png] [--save out.npz]
+                             [--wind 10] [--h-min 20] [--keep-energy] [--N-leg 40]
+                             [--plot out.png] [--save out.npz]
 """
 import argparse
 import os
@@ -28,8 +29,10 @@ from f3f.race_optimal import node_times, resample_race, solve_race_optimal  # no
 from f3f.simulate import default_start, run_mpc_race  # noqa: E402
 
 
-def summarize(name, t, diag):
-    print(f'{name:>8s}: V {diag[:, 0].min():5.1f}..{diag[:, 0].max():5.1f} m/s, '
+def summarize(name, X, diag):
+    h = -X[:, 2]
+    print(f'{name:>8s}: height min {h.min():5.1f} m, {h[0]:5.1f} -> {h[-1]:5.1f} m, '
+          f'V {diag[:, 0].min():5.1f}..{diag[:, 0].max():5.1f} m/s, '
           f'AoA max {np.degrees(diag[:, 1].max()):5.1f} deg, '
           f'load {diag[:, 3].min():5.1f}..{diag[:, 3].max():5.1f} g, '
           f'min clearance {diag[:, 4].min():5.1f} m, '
@@ -97,12 +100,16 @@ def main():
     parser.add_argument('--w-dist-e', type=float, default=1.0)
     parser.add_argument('--w-energy-e', type=float, default=1.0)
     parser.add_argument('--wind', type=float, default=10.0)
+    parser.add_argument('--h-min', type=float, default=Ridge.h_min,
+                        help='minimum height above the valley floor [m]')
+    parser.add_argument('--keep-energy', action='store_true',
+                        help='require the offline optimum to finish with its starting energy')
     parser.add_argument('--N-leg', type=int, default=40, help='offline OCP intervals per leg')
     parser.add_argument('--plot', type=str, default=None)
     parser.add_argument('--save', type=str, default=None)
     args = parser.parse_args()
 
-    glider, ridge = Glider(), Ridge(wind_speed=args.wind)
+    glider, ridge = Glider(), Ridge(wind_speed=args.wind, h_min=args.h_min)
     name = 'f3f_mpc' if args.N == 40 else f'f3f_mpc_N{args.N}'
     mpc = F3FMPC(glider, ridge, N=args.N, build=not args.no_build, name=name)
     theta = default_theta(w_dist_e=args.w_dist_e, w_energy_e=args.w_energy_e)
@@ -118,7 +125,10 @@ def main():
         return 1
 
     X0, U0, T0 = resample_race(log['t'], log['x'], log['u'], race.crossings, args.N_leg)
-    opt = solve_race_optimal(glider, ridge, x0, X0, U0, T0, N_leg=args.N_leg, verbose=False)
+    diag = make_diagnostics(glider, ridge)
+    e_min = float(diag(x0)[5]) if args.keep_energy else None
+    opt = solve_race_optimal(glider, ridge, x0, X0, U0, T0, N_leg=args.N_leg,
+                             min_final_energy=e_min, verbose=False)
     print(f'offline optimum: {opt["time"]:.2f} s ({opt["status"]}, {opt["iter"]} iterations, '
           f'integration defect {opt["defect"]:.1e})')
     if opt['defect'] > 0.1:
@@ -132,10 +142,9 @@ def main():
     print(f'{"sum":>4s} {race.time:8.2f} {opt["time"]:8.2f}   gap {gap:.2f} s '
           f'({100 * gap / opt["time"]:.1f}% of the optimum)\n')
 
-    diag = make_diagnostics(glider, ridge)
     opt_diag = np.array(diag.map(opt['X'].shape[1])(opt['X'])).T
-    summarize('MPC', log['t'], log['diag'])
-    summarize('optimum', None, opt_diag)
+    summarize('MPC', log['x'][:len(log['diag'])], log['diag'])
+    summarize('optimum', opt['X'].T, opt_diag)
     t_opt = node_times(opt['T'], args.N_leg)
 
     if args.save:
